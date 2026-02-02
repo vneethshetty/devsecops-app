@@ -1,31 +1,23 @@
 pipeline {
     agent any
-    environment {
-        AWS_REGION = "ap-south-1"
-        AWS_ACCOUNT_ID = "YOUR_ACCOUNT_ID"
-        ECR_REPO = "devsecops-app"
-    }
+
     stages {
-        stage('Build Docker Image') {
-            steps { sh 'docker build -t $ECR_REPO .' }
-        }
-        stage('Login to ECR') {
+        stage('Checkout') {
             steps {
-                sh '''
-                aws ecr get-login-password --region $AWS_REGION | \
-                docker login --username AWS --password-stdin \
-                $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
-                '''
+                git 'https://github.com/vneethshetty/devsecops-app.git'
             }
         }
-        stage('Push to ECR') {
-            steps {
-                sh '''
-                docker tag $ECR_REPO:latest \
-                $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:latest
 
-                docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:latest
-                '''
+        stage('Build Docker Image') {
+            steps {
+                sh 'docker build -t devsecops-app .'
+            }
+        }
+
+        stage('Run Container') {
+            steps {
+                sh 'docker rm -f devsecops-app || true'
+                sh 'docker run -d --name devsecops-app -p 3000:3000 devsecops-app'
             }
         }
     }
