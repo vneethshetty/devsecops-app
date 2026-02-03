@@ -3,13 +3,14 @@ pipeline {
 
     environment {
         AWS_REGION = "ap-south-1"
-        ECR_REGISTRY = "416754239581.dkr.ecr.ap-south-1.amazonaws.com"
-        IMAGE_NAME = "devsecops-app"
+        AWS_ACCOUNT_ID = "416754239581"
+        ECR_REPO = "devsecops-app"
+        IMAGE_TAG = "latest"
     }
 
     stages {
 
-        stage('Checkout') {
+        stage('Checkout Code') {
             steps {
                 checkout scm
             }
@@ -18,7 +19,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 sh '''
-                docker build -t ${IMAGE_NAME}:latest .
+                docker build -t ${ECR_REPO}:${IMAGE_TAG} .
                 '''
             }
         }
@@ -26,7 +27,7 @@ pipeline {
         stage('Login to ECR') {
             steps {
                 sh '''
-                aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}
+                aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
                 '''
             }
         }
@@ -34,7 +35,7 @@ pipeline {
         stage('Tag Image') {
             steps {
                 sh '''
-                docker tag ${IMAGE_NAME}:latest ${ECR_REGISTRY}/${IMAGE_NAME}:latest
+                docker tag ${ECR_REPO}:${IMAGE_TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:${IMAGE_TAG}
                 '''
             }
         }
@@ -42,9 +43,18 @@ pipeline {
         stage('Push to ECR') {
             steps {
                 sh '''
-                docker push ${ECR_REGISTRY}/${IMAGE_NAME}:latest
+                docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:${IMAGE_TAG}
                 '''
             }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ Docker image successfully pushed to ECR"
+        }
+        failure {
+            echo "❌ Pipeline failed"
         }
     }
 }
